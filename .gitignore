@@ -2,6 +2,7 @@ node_modules
 .pnpm-store
 .next
 dist
+*.tsbuildinfo
 .DS_Store
 apps/web/data/uploads/*
 !apps/web/data/uploads/.gitkeep
