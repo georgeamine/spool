@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Spool",
+  "description": "Bare-bones Loom-style recorder for tab, window, or full screen capture.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "tabCapture",
+    "desktopCapture",
+    "offscreen",
+    "downloads"
+  ],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Spool",
+    "default_popup": "src/popup.html"
+  },
+  "icons": {},
+  "web_accessible_resources": [
+    {
+      "resources": ["src/offscreen.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
