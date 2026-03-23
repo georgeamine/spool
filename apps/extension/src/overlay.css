@@ -1,0 +1,211 @@
+:root {
+  color-scheme: light;
+  --panel: #ffffff;
+  --text: #11212d;
+  --muted: #597081;
+  --accent: #0f6cbd;
+  --accent-strong: #094f8c;
+  --border: rgba(17, 33, 45, 0.12);
+  --shadow: 0 32px 80px rgba(10, 26, 41, 0.24);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  background: transparent;
+  color: var(--text);
+}
+
+.overlay {
+  padding: 24px;
+  background: #ffffff;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headerCopy {
+  min-width: 0;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.settingsHeaderCopy {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.settingsTitle {
+  font-size: 1.2rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.panelPane {
+  gap: 16px;
+}
+
+#mainPane,
+#settingsPane {
+  display: none;
+}
+
+.overlay[data-mode="main"] #mainPane {
+  display: grid;
+}
+
+.overlay[data-mode="settings"] #settingsPane {
+  display: grid;
+}
+
+.overlay[data-mode="settings"] #mainHeaderCopy {
+  display: none;
+}
+
+.overlay[data-mode="settings"] #settingsHeaderCopy {
+  display: flex;
+}
+
+.notice {
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #f5f7fa;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.primaryButton {
+  width: 100%;
+  border-radius: 14px;
+  font: inherit;
+}
+
+.controls {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.field span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+select,
+input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.levelSelect {
+  --level: 0%;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(15, 108, 189, 0.18) 0,
+      rgba(15, 108, 189, 0.18) var(--level),
+      #ffffff var(--level),
+      #ffffff 100%
+    );
+  transition: background 80ms linear, border-color 120ms ease;
+}
+
+.primaryButton {
+  border: none;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 18px 34px rgba(9, 79, 140, 0.24);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--accent-strong);
+  background: #f5f7f9;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.iconButton[hidden] {
+  display: none;
+}
+
+.iconButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.status {
+  margin-top: 12px;
+  padding: 0 2px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1.2rem;
+}

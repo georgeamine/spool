@@ -12,6 +12,11 @@ let activeDisplayVideoElement = null;
 let activeCameraVideoElement = null;
 let renderFrameHandle = null;
 const blobUrlCleanupTimers = new Set();
+const DEFAULT_WEBCAM_POSITION = {
+  x: 0,
+  y: 1
+};
+const DEFAULT_WEBCAM_SIZE = 180;
 
 async function sendMessage(message) {
   return chrome.runtime.sendMessage(message);
@@ -22,6 +27,31 @@ async function sendStatus(detail) {
     type: "offscreen-status",
     payload: { detail }
   });
+}
+
+function getContainedRect(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+  const sourceAspect = sourceWidth / sourceHeight;
+  const targetAspect = targetWidth / targetHeight;
+
+  if (sourceAspect > targetAspect) {
+    const width = targetWidth;
+    const height = Math.round(width / sourceAspect);
+    return {
+      x: 0,
+      y: Math.round((targetHeight - height) / 2),
+      width,
+      height
+    };
+  }
+
+  const height = targetHeight;
+  const width = Math.round(height * sourceAspect);
+  return {
+    x: Math.round((targetWidth - width) / 2),
+    y: 0,
+    width,
+    height
+  };
 }
 
 function buildTabConstraints(streamId) {
@@ -36,8 +66,6 @@ function buildTabConstraints(streamId) {
       mandatory: {
         chromeMediaSource: "tab",
         chromeMediaSourceId: streamId,
-        maxWidth: 3840,
-        maxHeight: 2160,
         maxFrameRate: 30
       }
     }
@@ -135,17 +163,45 @@ function drawRoundedRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-async function createCompositedVideoTrack() {
+function drawCircle(context, centerX, centerY, radius) {
+  context.beginPath();
+  context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  context.closePath();
+}
+
+function getOverlayScaleFromSize(size) {
+  if (typeof size === "number" && Number.isFinite(size)) {
+    return Math.min(Math.max(size / 1000, 0.12), 0.42);
+  }
+
+  if (size === "small") {
+    return 0.14;
+  }
+
+  if (size === "large") {
+    return 0.24;
+  }
+
+  return 0.18;
+}
+
+async function createOutputVideoTrack() {
   const displayTrack = activeDisplayStream.getVideoTracks()[0];
   const displaySettings = displayTrack.getSettings();
-  const width = displaySettings.width || 1280;
-  const height = displaySettings.height || 720;
+  const sourceWidth = displaySettings.width || 1280;
+  const sourceHeight = displaySettings.height || 720;
+  const width = Math.max(2, sourceWidth);
+  const height = Math.max(2, sourceHeight);
 
   if (!activeDisplayVideoElement) {
     activeDisplayVideoElement = await createVideoElement(activeDisplayStream);
   }
-  await getCameraStream();
-  activeCameraVideoElement = await createVideoElement(activeCameraStream);
+
+  const shouldCompositeWebcam = activeSettings.webcam;
+  if (shouldCompositeWebcam) {
+    await getCameraStream();
+    activeCameraVideoElement = await createVideoElement(activeCameraStream);
+  }
 
   activeCanvasElement = document.createElement("canvas");
   activeCanvasElement.width = width;
@@ -157,25 +213,48 @@ async function createCompositedVideoTrack() {
     throw new Error("Unable to create canvas context for webcam composition");
   }
 
-  const overlayWidth = Math.round(width * 0.24);
-  const overlayHeight = Math.round((overlayWidth * 9) / 16);
+  const displayRect = getContainedRect(sourceWidth, sourceHeight, width, height);
+
+  const webcamSize = activeSettings.webcamSize ?? DEFAULT_WEBCAM_SIZE;
+  const overlayScale = getOverlayScaleFromSize(webcamSize);
+  const overlayWidth = Math.round(width * overlayScale);
+  const overlayHeight = overlayWidth;
   const margin = Math.max(20, Math.round(width * 0.02));
-  const overlayX = width - overlayWidth - margin;
-  const overlayY = height - overlayHeight - margin;
-  const radius = 18;
+  const overlayRangeX = Math.max(0, width - overlayWidth - margin * 2);
+  const overlayRangeY = Math.max(0, height - overlayHeight - margin * 2);
+  const webcamPosition = activeSettings.webcamPosition ?? DEFAULT_WEBCAM_POSITION;
+  const normalizedX = Number.isFinite(webcamPosition.x) ? Math.min(Math.max(webcamPosition.x, 0), 1) : 0;
+  const normalizedY = Number.isFinite(webcamPosition.y) ? Math.min(Math.max(webcamPosition.y, 0), 1) : 1;
+  const overlayX = margin + Math.round(overlayRangeX * normalizedX);
+  const overlayY = margin + Math.round(overlayRangeY * normalizedY);
+  const circleRadius = Math.round(overlayWidth / 2);
+  const centerX = overlayX + circleRadius;
+  const centerY = overlayY + circleRadius;
 
   const renderFrame = () => {
     context.clearRect(0, 0, width, height);
-    context.drawImage(activeDisplayVideoElement, 0, 0, width, height);
-    context.save();
-    drawRoundedRect(context, overlayX, overlayY, overlayWidth, overlayHeight, radius);
-    context.clip();
-    context.drawImage(activeCameraVideoElement, overlayX, overlayY, overlayWidth, overlayHeight);
-    context.restore();
-    context.lineWidth = 3;
-    context.strokeStyle = "rgba(255, 255, 255, 0.92)";
-    drawRoundedRect(context, overlayX, overlayY, overlayWidth, overlayHeight, radius);
-    context.stroke();
+    context.fillStyle = "#000000";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(
+      activeDisplayVideoElement,
+      displayRect.x,
+      displayRect.y,
+      displayRect.width,
+      displayRect.height
+    );
+
+    if (shouldCompositeWebcam && activeCameraVideoElement) {
+      context.save();
+      drawCircle(context, centerX, centerY, circleRadius);
+      context.clip();
+      context.drawImage(activeCameraVideoElement, overlayX, overlayY, overlayWidth, overlayHeight);
+      context.restore();
+      context.lineWidth = 3;
+      context.strokeStyle = "rgba(255, 255, 255, 0.92)";
+      drawCircle(context, centerX, centerY, circleRadius);
+      context.stroke();
+    }
+
     renderFrameHandle = requestAnimationFrame(renderFrame);
   };
 
@@ -186,10 +265,11 @@ async function createCompositedVideoTrack() {
 
 async function createRecordingStream(settings) {
   activeDisplayStream = await getCaptureStream(settings.source, settings.streamId);
-  activeDisplayVideoElement = await createVideoElement(activeDisplayStream);
-  const videoTrack = settings.webcam
-    ? await createCompositedVideoTrack()
-    : activeDisplayStream.getVideoTracks()[0];
+  const videoTrack = activeDisplayStream.getVideoTracks()[0] ?? null;
+
+  if (videoTrack && "contentHint" in videoTrack) {
+    videoTrack.contentHint = "detail";
+  }
 
   const tracks = videoTrack ? [videoTrack] : [];
   activeAudioContext = new AudioContext();
@@ -222,6 +302,34 @@ function getTimestampSlug() {
 
 function getRecordingFileName() {
   return `spool-${getTimestampSlug()}.webm`;
+}
+
+function getRecorderBitrate(stream) {
+  const videoTrack = stream.getVideoTracks()[0];
+  const settings = videoTrack?.getSettings?.() ?? {};
+  const width = settings.width ?? 1920;
+  const height = settings.height ?? 1080;
+  const pixels = width * height;
+
+  if (pixels >= 3840 * 2160) {
+    return 36000000;
+  }
+
+  if (pixels >= 2560 * 1440) {
+    return 22000000;
+  }
+
+  if (pixels >= 1920 * 1080) {
+    return 14000000;
+  }
+
+  return 8000000;
+}
+
+function getPreferredMimeTypes(source) {
+  return source === "tab"
+    ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+    : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
 }
 
 async function saveRecordingLocally(blob) {
@@ -333,16 +441,17 @@ async function startRecording(settings) {
   activeStream = await createRecordingStream(settings);
   await sendStatus("Capture stream ready.");
 
-  const preferredMimeTypes =
-    settings.source === "tab"
-      ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
-      : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
-  const mimeType =
-    preferredMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ||
-    "video/webm";
+  const preferredMimeTypes = getPreferredMimeTypes(settings.source);
+  const mimeType = preferredMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+
+  if (!mimeType) {
+    throw new Error("No supported recording format is available.");
+  }
 
   mediaRecorder = new MediaRecorder(activeStream, {
-    mimeType
+    mimeType,
+    videoBitsPerSecond: getRecorderBitrate(activeStream),
+    audioBitsPerSecond: 128000
   });
 
   mediaRecorder.addEventListener("error", async (event) => {

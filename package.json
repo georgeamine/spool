@@ -1,11 +1,5 @@
 {
   "name": "spool",
   "private": true,
-  "packageManager": "pnpm@10.27.0",
-  "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
-    "typecheck": "pnpm --filter web typecheck && pnpm --filter @spool/shared typecheck"
-  }
+  "packageManager": "pnpm@10.27.0"
 }
-

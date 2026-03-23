@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spool Overlay</title>
+    <link rel="stylesheet" href="./overlay.css" />
+  </head>
+  <body>
+    <main id="overlayRoot" class="overlay" data-mode="main">
+      <header class="header">
+        <div id="mainHeaderCopy" class="headerCopy">
+          <h1>Record a video</h1>
+        </div>
+        <div id="settingsHeaderCopy" class="settingsHeaderCopy" hidden>
+          <button
+            id="backButton"
+            class="iconButton"
+            type="button"
+            title="Back to recorder"
+            hidden
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M14.8 5.8a1 1 0 0 1 0 1.4L10 12l4.8 4.8a1 1 0 1 1-1.4 1.4l-5.5-5.5a1 1 0 0 1 0-1.4l5.5-5.5a1 1 0 0 1 1.4 0Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <h1 class="settingsTitle">Settings</h1>
+        </div>
+        <div class="headerActions">
+          <button
+            id="settingsButton"
+            class="iconButton"
+            type="button"
+            title="Open settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M10.9 2.9a1 1 0 0 1 2.2 0l.4 1.6a7.5 7.5 0 0 1 1.7.7l1.4-.9a1 1 0 0 1 1.3.2l1.6 1.6a1 1 0 0 1 .2 1.3l-.9 1.4c.3.6.5 1.1.7 1.7l1.6.4a1 1 0 0 1 0 2.2l-1.6.4a7.5 7.5 0 0 1-.7 1.7l.9 1.4a1 1 0 0 1-.2 1.3l-1.6 1.6a1 1 0 0 1-1.3.2l-1.4-.9a7.5 7.5 0 0 1-1.7.7l-.4 1.6a1 1 0 0 1-2.2 0l-.4-1.6a7.5 7.5 0 0 1-1.7-.7l-1.4.9a1 1 0 0 1-1.3-.2L4.5 18a1 1 0 0 1-.2-1.3l.9-1.4a7.5 7.5 0 0 1-.7-1.7l-1.6-.4a1 1 0 0 1 0-2.2l1.6-.4a7.5 7.5 0 0 1 .7-1.7l-.9-1.4a1 1 0 0 1 .2-1.3l1.6-1.6a1 1 0 0 1 1.3-.2l1.4.9c.6-.3 1.1-.5 1.7-.7l.4-1.6ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <button id="closeButton" class="iconButton" type="button" title="Close recorder">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M6.2 6.2a1 1 0 0 1 1.4 0L12 10.6l4.4-4.4a1 1 0 1 1 1.4 1.4L13.4 12l4.4 4.4a1 1 0 0 1-1.4 1.4L12 13.4l-4.4 4.4a1 1 0 0 1-1.4-1.4l4.4-4.4-4.4-4.4a1 1 0 0 1 0-1.4Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <form id="recording-form" class="form">
+        <section id="mainPane" class="panelPane">
+          <section class="controls">
+            <label class="field">
+              <span>What to record</span>
+              <select id="source" name="source">
+                <option value="tab">Current tab</option>
+                <option value="window">Chrome window</option>
+                <option value="screen">Entire screen</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Webcam</span>
+              <select id="webcamMode" name="webcamMode"></select>
+            </label>
+
+            <label class="field levelField">
+              <span>Microphone</span>
+              <select id="microphoneMode" name="microphoneMode" class="levelSelect"></select>
+            </label>
+          </section>
+
+          <button id="submit-button" class="primaryButton" type="submit">Start recording</button>
+        </section>
+
+        <section id="settingsPane" class="panelPane controls" hidden>
+          <label class="field">
+            <span>Format</span>
+            <select id="recordingFormat" name="recordingFormat">
+              <option value="webm">WebM</option>
+              <option value="mp4" disabled>MP4 (coming soon)</option>
+            </select>
+          </label>
+        </section>
+      </form>
+
+      <section id="status" class="status"></section>
+    </main>
+
+    <script src="./overlay.js" type="module"></script>
+  </body>
+</html>

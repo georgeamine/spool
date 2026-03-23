@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "permissions": [
     "storage",
+    "scripting",
     "activeTab",
     "tabs",
     "tabCapture",
@@ -19,12 +20,30 @@
   },
   "action": {
     "default_title": "Spool",
-    "default_popup": "src/popup.html"
+    "default_icon": {
+      "16": "bobbin.png",
+      "32": "bobbin.png",
+      "48": "bobbin.png",
+      "128": "bobbin.png"
+    }
   },
-  "icons": {},
+  "icons": {
+    "16": "bobbin.png",
+    "32": "bobbin.png",
+    "48": "bobbin.png",
+    "128": "bobbin.png"
+  },
   "web_accessible_resources": [
     {
-      "resources": ["src/offscreen.html"],
+      "resources": [
+        "src/offscreen.html",
+        "src/overlay.html",
+        "src/overlay.css",
+        "src/overlay.js",
+        "src/webcam-bubble.html",
+        "src/webcam-bubble.css",
+        "src/webcam-bubble.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

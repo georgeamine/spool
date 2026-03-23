@@ -1,45 +1,45 @@
 # Spool
 
-Greenfield MVP for a Loom-style Chrome extension plus web app.
+Open source Chrome recorder that saves recordings straight to `Downloads/Spool`.
 
-## Workspace
+Spool is a local-first Chrome extension for quick screen recordings. It opens an in-page panel on normal web pages, records locally, and downloads the file automatically. There is no cloud upload flow and no dashboard.
 
-- `apps/web`: Next.js app with local filesystem storage for recordings
-- `apps/extension`: Manifest V3 Chrome extension, loadable unpacked
-- `packages/shared`: shared types for the web app and future extension build step
+## Features
 
-## Local Setup
+- in-page recorder panel instead of a browser popup
+- records `Current tab`, `Chrome window`, or `Entire screen`
+- optional draggable and resizable webcam bubble
+- optional microphone input with live level preview
+- downloads recordings automatically to `Downloads/Spool`
+- local-first `.webm` recording pipeline
+- settings screen with format selector showing `WebM` and `MP4 (coming soon)`
 
-1. Install dependencies:
+## Quick Start
 
 ```bash
 pnpm install
 ```
 
-2. Start the web app:
+Then:
 
-```bash
-pnpm dev:web
-```
+1. Open `chrome://extensions`
+2. Enable `Developer mode`
+3. Click `Load unpacked`
+4. Select [`apps/extension`](/Users/georgeamine/Developer/spool/apps/extension)
 
-3. Load the extension from `apps/extension` in `chrome://extensions`.
+Click the Spool toolbar icon on a normal `http` or `https` page to open the recorder panel.
 
-4. In the extension popup, keep `Server URL` pointed at `http://localhost:3000`.
+## Current Behavior
 
-## Current MVP Behavior
-
-- Configure recording source and microphone in the extension popup
-- Choose what happens after recording:
-  - save locally
-  - upload for a share link
-  - or do both
-- Start recording from the popup
-- Click the extension icon again to stop recording
-- Local saves use Chrome Downloads and go to the user's machine
-- Uploads go to the local Next.js server and open a share page
+- `Current tab` records the tab as rendered
+- `Chrome window` and `Entire screen` record the raw display stream
+- the webcam bubble is a live page preview and can be dragged or resized
+- recordings save automatically with no post-upload step
 
 ## Notes
 
-- Storage is local-only for now: metadata in `apps/web/data/videos.json`, blobs in `apps/web/data/uploads`
-- Public share pages are available without auth in this first pass
-- The extension is intentionally buildless so the first loop is simple to run and debug
+- recording only works on regular `http` or `https` pages
+- Chrome internal pages like `chrome://newtab`, `chrome://extensions`, and `chrome://settings` are blocked
+- recordings are saved automatically to `Downloads/Spool`
+- `WebM` is the supported recording format today
+- `MP4` is shown in settings as a disabled coming-soon option

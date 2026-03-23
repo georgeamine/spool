@@ -11,11 +11,6 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "baseUrl": ".",
-    "paths": {
-      "@spool/shared": ["packages/shared/src/index.ts"]
-    }
+    "jsx": "preserve"
   }
 }
-
