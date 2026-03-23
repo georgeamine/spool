@@ -8,3 +8,4 @@ dist
 apps/web/data/uploads/*
 !apps/web/data/uploads/.gitkeep
 apps/web/data/videos.json
+spool-extension.zip
