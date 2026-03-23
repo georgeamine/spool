@@ -1,0 +1,16 @@
+{
+  "name": "@spool/extension-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-ui.mjs"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "sonner": "^2.0.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.11"
+  }
+}

@@ -342,6 +342,12 @@ async function saveRecordingLocally({ blobUrl, filename }) {
   return downloadId;
 }
 
+async function openRecordingResultPage() {
+  await chrome.tabs.create({
+    url: chrome.runtime.getURL("src/recording-result.html")
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   syncAction().catch(console.error);
 });
@@ -487,9 +493,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
 
-  if (message.type === "save-recording-locally") {
-    saveRecordingLocally(message.payload)
-      .then((downloadId) => sendResponse({ ok: true, downloadId }))
+  if (message.type === "offscreen-recording-ready") {
+    clearStopTimeout();
+    state.status = "idle";
+    state.lastError = null;
+    stopRecordingPreview().catch(() => {});
+    state.activeSettings = null;
+    state.recordingTabId = null;
+    state.detail = message.payload.detail ?? "Recording ready.";
+    syncAction()
+      .then(() => openRecordingResultPage())
+      .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -505,6 +519,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     syncAction().catch(console.error);
     sendResponse({ ok: true });
     return;
+  }
+
+  if (message.type === "save-recording-locally") {
+    saveRecordingLocally(message.payload)
+      .then((downloadId) => sendResponse({ ok: true, downloadId }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
   }
 
   if (message.type === "offscreen-status") {

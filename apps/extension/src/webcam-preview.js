@@ -4,7 +4,6 @@ if (!globalThis.__spoolWebcamPreviewModuleLoaded) {
   const PREVIEW_CONTAINER_ID = "spool-webcam-preview";
   const PREVIEW_SHELL_ID = "spool-webcam-preview-shell";
   const PREVIEW_FRAME_ID = "spool-webcam-preview-frame";
-  const PREVIEW_RESIZE_HANDLE_ID = "spool-webcam-preview-resize";
   const PREVIEW_STYLE_ID = "spool-webcam-preview-style";
   const PREVIEW_STORAGE_DEFAULTS = {
     webcamSize: 180,
@@ -85,51 +84,6 @@ function ensurePreviewStyles() {
       border-radius: 999px;
     }
 
-    #${PREVIEW_RESIZE_HANDLE_ID} {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 24px;
-      height: 24px;
-      border-radius: 999px;
-      border: 2px solid rgba(255, 255, 255, 0.94);
-      background: rgba(12, 20, 30, 0.82);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-      opacity: 0;
-      transition: opacity 120ms ease;
-      pointer-events: auto;
-      cursor: nesw-resize;
-    }
-
-    #${PREVIEW_CONTAINER_ID}:hover #${PREVIEW_RESIZE_HANDLE_ID},
-    #${PREVIEW_CONTAINER_ID}:focus-within #${PREVIEW_RESIZE_HANDLE_ID},
-    #${PREVIEW_CONTAINER_ID}.isResizeZone #${PREVIEW_RESIZE_HANDLE_ID},
-    #${PREVIEW_CONTAINER_ID}.isResizing #${PREVIEW_RESIZE_HANDLE_ID} {
-      opacity: 1;
-    }
-
-    #${PREVIEW_RESIZE_HANDLE_ID}::before,
-    #${PREVIEW_RESIZE_HANDLE_ID}::after {
-      content: "";
-      position: absolute;
-      right: 6px;
-      background: #ffffff;
-      border-radius: 999px;
-      transform: rotate(45deg);
-      transform-origin: center;
-    }
-
-    #${PREVIEW_RESIZE_HANDLE_ID}::before {
-      top: 5px;
-      width: 2px;
-      height: 9px;
-    }
-
-    #${PREVIEW_RESIZE_HANDLE_ID}::after {
-      top: 8px;
-      width: 9px;
-      height: 2px;
-    }
   `;
 
   document.documentElement.append(style);
@@ -284,11 +238,6 @@ function ensurePreviewDom(cameraDeviceId) {
     shell.append(frame);
     container.append(shell);
 
-    const resizeHandle = document.createElement("div");
-    resizeHandle.id = PREVIEW_RESIZE_HANDLE_ID;
-    resizeHandle.setAttribute("role", "presentation");
-    container.append(resizeHandle);
-
     document.documentElement.append(container);
   } else {
     const frame = container.querySelector("iframe");
@@ -381,7 +330,6 @@ function ensurePreviewDom(cameraDeviceId) {
 
   if (!container.dataset.resizeReady) {
     container.dataset.resizeReady = "true";
-    const resizeHandle = container.querySelector(`#${PREVIEW_RESIZE_HANDLE_ID}`);
     const startResize = (event) => {
       if (event.button !== 0) {
         return;
@@ -443,7 +391,6 @@ function ensurePreviewDom(cameraDeviceId) {
       window.addEventListener("pointercancel", handlePointerCancel);
     };
 
-    resizeHandle?.addEventListener("pointerdown", startResize);
     container.addEventListener("pointerdown", (event) => {
       if (!isResizeHotspot(event, container)) {
         return;

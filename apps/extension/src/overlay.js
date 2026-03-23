@@ -12,6 +12,7 @@ const form = document.getElementById("recording-form");
 const mainHeaderCopy = document.getElementById("mainHeaderCopy");
 const settingsHeaderCopy = document.getElementById("settingsHeaderCopy");
 const backButton = document.getElementById("backButton");
+const uploadsButton = document.getElementById("uploadsButton");
 const settingsButton = document.getElementById("settingsButton");
 const closeButton = document.getElementById("closeButton");
 const mainPane = document.getElementById("mainPane");
@@ -260,9 +261,14 @@ function setPanelMode(nextMode) {
   settingsPane.hidden = !showSettings;
   mainHeaderCopy.hidden = showSettings;
   settingsHeaderCopy.hidden = !showSettings;
+  uploadsButton.hidden = showSettings;
   settingsButton.hidden = showSettings;
   backButton.hidden = !showSettings;
   closeButton.hidden = showSettings;
+}
+
+function openUploadsPage() {
+  window.open(chrome.runtime.getURL("src/uploads.html"), "_blank", "noopener,noreferrer");
 }
 
 async function syncWebcamPreview() {
@@ -376,6 +382,10 @@ closeButton.addEventListener("click", () => {
   hideOverlay().catch((error) => {
     setStatus(error.message);
   });
+});
+
+uploadsButton.addEventListener("click", () => {
+  openUploadsPage();
 });
 
 settingsButton.addEventListener("click", () => {

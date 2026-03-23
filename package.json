@@ -1,5 +1,11 @@
 {
   "name": "spool",
   "private": true,
-  "packageManager": "pnpm@10.27.0"
+  "packageManager": "pnpm@10.27.0",
+  "scripts": {
+    "api:dev": "pnpm --filter @spool/share-api dev",
+    "api:package": "pnpm --filter @spool/share-api package",
+    "api:start": "pnpm --filter @spool/share-api start",
+    "extension:build": "pnpm --filter @spool/extension-ui build"
+  }
 }

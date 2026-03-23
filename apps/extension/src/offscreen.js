@@ -1,3 +1,9 @@
+import { saveLatestRecording } from "./recording-store.js";
+import {
+  getDefaultRecordingTitle,
+  titleToFileName
+} from "./recording-title.js";
+
 let mediaRecorder = null;
 let recordedChunks = [];
 let activeStream = null;
@@ -11,7 +17,6 @@ let activeCanvasElement = null;
 let activeDisplayVideoElement = null;
 let activeCameraVideoElement = null;
 let renderFrameHandle = null;
-const blobUrlCleanupTimers = new Set();
 const DEFAULT_WEBCAM_POSITION = {
   x: 0,
   y: 1
@@ -332,44 +337,32 @@ function getPreferredMimeTypes(source) {
     : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
 }
 
-async function saveRecordingLocally(blob) {
+async function persistRecordingForResult(blob, fileName, mimeType) {
   if (blob.size === 0) {
     throw new Error("Recording produced an empty file");
   }
 
-  await sendMessage({
-    type: "offscreen-save-started",
-    payload: {
-      detail: "Saving recording..."
-    }
+  const createdAt = new Date().toISOString();
+  const title = getDefaultRecordingTitle(createdAt);
+
+  await sendStatus("Saving recording preview...");
+  await saveLatestRecording({
+    blob,
+    createdAt,
+    fileName: titleToFileName(title),
+    mimeType,
+    originalFileName: fileName,
+    sizeBytes: blob.size,
+    title
   });
 
-  const blobUrl = URL.createObjectURL(blob);
-
-  try {
-    const response = await sendMessage({
-      type: "save-recording-locally",
-      payload: {
-        blobUrl,
-        filename: `Spool/${getRecordingFileName()}`
-      }
-    });
-
-    if (!response?.ok) {
-      throw new Error(response?.error || "Failed to save recording locally");
-    }
-  } finally {
-    const cleanupTimer = setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-      blobUrlCleanupTimers.delete(cleanupTimer);
-    }, 120000);
-    blobUrlCleanupTimers.add(cleanupTimer);
-  }
-
   await sendMessage({
-    type: "offscreen-save-complete",
+    type: "offscreen-recording-ready",
     payload: {
-      detail: "Recording saved to Downloads/Spool."
+      detail: "Recording ready.",
+      fileName,
+      mimeType,
+      sizeBytes: blob.size
     }
   });
 }
@@ -475,13 +468,14 @@ async function startRecording(settings) {
       await sendStatus("Recorder stop event fired.");
       stopActiveTracks();
       const blob = new Blob(recordedChunks, { type: mimeType });
+      const fileName = getRecordingFileName();
       await sendStatus(`Blob assembled (${blob.size} bytes).`);
 
       if (blob.size === 0) {
         throw new Error("Recording produced an empty file");
       }
 
-      await saveRecordingLocally(blob);
+      await persistRecordingForResult(blob, fileName, mimeType);
     } catch (error) {
       await sendMessage({
         type: "offscreen-recording-error",
