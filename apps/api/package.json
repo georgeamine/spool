@@ -6,8 +6,10 @@
     "build": "esbuild src/lambda.mjs --bundle --platform=node --target=node20 --format=cjs --outfile=dist/index.js",
     "dev": "node --watch src/dev.mjs",
     "deploy": "./scripts/deploy-lambda.sh",
+    "lint": "node --check src/*.mjs test/*.mjs",
     "package": "pnpm run build && cd dist && zip -q lambda.zip index.js",
-    "start": "node src/dev.mjs"
+    "start": "node src/dev.mjs",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.918.0",

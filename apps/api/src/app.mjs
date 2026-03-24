@@ -223,10 +223,7 @@ app.use("/api/share/*", requireAuthenticatedUser);
 
 app.get("/health", (c) =>
   c.json({
-    ok: true,
-    region,
-    bucket,
-    recordingsTable
+    status: "ok"
   })
 );
 

@@ -37,6 +37,7 @@ The repo now includes a minimal Hono API in [`apps/api`](/Users/georgeamine/Deve
 - presigns private S3 uploads
 - returns stable share URLs
 - redirects share URLs to fresh signed S3 download URLs
+- exposes `GET /health` for lightweight liveness checks, returning `{"status":"ok"}`
 
 The S3 bucket provisioned for this repo is:
 
@@ -47,6 +48,13 @@ To run the share API locally:
 ```bash
 pnpm install
 pnpm api:dev
+```
+
+To verify the API health endpoint changes locally:
+
+```bash
+pnpm api:lint
+pnpm api:test
 ```
 
 Environment variables are documented in [`apps/api/.env.example`](/Users/georgeamine/Developer/spool/apps/api/.env.example).
