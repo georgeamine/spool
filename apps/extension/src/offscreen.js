@@ -285,10 +285,16 @@ async function createRecordingStream(settings) {
   }
 
   const tracks = videoTrack ? [videoTrack] : [];
+  const displayAudioTracks = activeDisplayStream.getAudioTracks();
+  const shouldMixAudio = displayAudioTracks.length > 0 || settings.microphone;
+
+  if (!shouldMixAudio) {
+    return new MediaStream(tracks);
+  }
+
   activeAudioContext = new AudioContext();
   const destination = activeAudioContext.createMediaStreamDestination();
 
-  const displayAudioTracks = activeDisplayStream.getAudioTracks();
   if (displayAudioTracks.length > 0) {
     const displayAudioStream = new MediaStream(displayAudioTracks);
     const displaySource = activeAudioContext.createMediaStreamSource(displayAudioStream);
@@ -339,7 +345,13 @@ function getRecorderBitrate(stream) {
   return 8000000;
 }
 
-function getPreferredMimeTypes(source, requiresPickerForTabCapture = false) {
+function getPreferredMimeTypes(stream, source, requiresPickerForTabCapture = false) {
+  const hasAudioTrack = stream.getAudioTracks().length > 0;
+
+  if (!hasAudioTrack) {
+    return ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  }
+
   return source === "tab" && !requiresPickerForTabCapture
     ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
@@ -443,6 +455,7 @@ async function startRecording(settings) {
   await sendStatus("Capture stream ready.");
 
   const preferredMimeTypes = getPreferredMimeTypes(
+    activeStream,
     settings.source,
     settings.requiresPickerForTabCapture
   );
@@ -452,11 +465,16 @@ async function startRecording(settings) {
     throw new Error("No supported recording format is available.");
   }
 
-  mediaRecorder = new MediaRecorder(activeStream, {
+  const mediaRecorderOptions = {
     mimeType,
-    videoBitsPerSecond: getRecorderBitrate(activeStream),
-    audioBitsPerSecond: 128000
-  });
+    videoBitsPerSecond: getRecorderBitrate(activeStream)
+  };
+
+  if (activeStream.getAudioTracks().length > 0) {
+    mediaRecorderOptions.audioBitsPerSecond = 128000;
+  }
+
+  mediaRecorder = new MediaRecorder(activeStream, mediaRecorderOptions);
 
   mediaRecorder.addEventListener("error", async (event) => {
     await sendMessage({

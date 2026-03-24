@@ -141,6 +141,16 @@ function shouldUsePickerForTabCapture(tabId) {
   return state.overlayTabId === tabId && state.overlayRequiresPickerForTabCapture;
 }
 
+function isTabCapturePermissionError(error) {
+  const message = error?.message || "";
+
+  return (
+    message.includes("Extension has not been invoked for the current page") ||
+    message.includes("activeTab permission") ||
+    message.includes("Chrome pages cannot be captured")
+  );
+}
+
 function waitForTabLoad(tabId) {
   return new Promise((resolve, reject) => {
     let timeoutId = null;
@@ -391,6 +401,9 @@ async function startRecording(settings) {
     throw new Error("No active tab available for capture");
   }
 
+  let requiresPickerForTabCapture =
+    normalizedSettings.source === "tab" && shouldUsePickerForTabCapture(activeTab.id);
+
   state.activeSettings = normalizedSettings;
   state.recordingTabId = activeTab.id;
   state.lastError = null;
@@ -403,12 +416,19 @@ async function startRecording(settings) {
   await new Promise((resolve) => setTimeout(resolve, 120));
   await ensureOffscreenDocument();
 
-  const requiresPickerForTabCapture =
-    normalizedSettings.source === "tab" && shouldUsePickerForTabCapture(activeTab.id);
-  const streamId =
-    normalizedSettings.source === "tab" && !requiresPickerForTabCapture
-      ? await getTabStreamId(activeTab.id)
-      : null;
+  let streamId = null;
+  if (normalizedSettings.source === "tab" && !requiresPickerForTabCapture) {
+    try {
+      streamId = await getTabStreamId(activeTab.id);
+    } catch (error) {
+      if (!isTabCapturePermissionError(error)) {
+        throw error;
+      }
+
+      requiresPickerForTabCapture = true;
+      state.detail = "Opening Chrome's picker so you can choose what to record...";
+    }
+  }
 
   state.detail = "Starting recorder...";
 
