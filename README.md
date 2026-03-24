@@ -34,6 +34,7 @@ Click the Spool toolbar icon on a normal `http` or `https` page to open the reco
 
 The repo now includes a minimal Hono API in [`apps/api`](/Users/georgeamine/Developer/spool/apps/api) that is designed for AWS Lambda Function URLs:
 
+- exposes `GET /health` for a basic `200 OK` JSON health check
 - presigns private S3 uploads
 - returns stable share URLs
 - redirects share URLs to fresh signed S3 download URLs
@@ -47,6 +48,18 @@ To run the share API locally:
 ```bash
 pnpm install
 pnpm api:dev
+```
+
+Health check:
+
+```bash
+curl http://localhost:8787/health
+```
+
+Expected response:
+
+```json
+{"ok":true}
 ```
 
 Environment variables are documented in [`apps/api/.env.example`](/Users/georgeamine/Developer/spool/apps/api/.env.example).
