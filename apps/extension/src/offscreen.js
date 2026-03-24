@@ -77,12 +77,16 @@ function buildTabConstraints(streamId) {
   };
 }
 
-async function getCaptureStream(source, streamId) {
-  if (source === "tab") {
+async function getCaptureStream(source, streamId, requiresPickerForTabCapture = false) {
+  if (source === "tab" && !requiresPickerForTabCapture) {
     return navigator.mediaDevices.getUserMedia(buildTabConstraints(streamId));
   }
 
-  await sendStatus("Choose a window or screen in the Chrome picker...");
+  await sendStatus(
+    requiresPickerForTabCapture
+      ? "Choose a tab, window, or screen in the Chrome picker..."
+      : "Choose a window or screen in the Chrome picker..."
+  );
   return navigator.mediaDevices.getDisplayMedia({
     video: {
       frameRate: 30
@@ -269,7 +273,11 @@ async function createOutputVideoTrack() {
 }
 
 async function createRecordingStream(settings) {
-  activeDisplayStream = await getCaptureStream(settings.source, settings.streamId);
+  activeDisplayStream = await getCaptureStream(
+    settings.source,
+    settings.streamId,
+    settings.requiresPickerForTabCapture
+  );
   const videoTrack = activeDisplayStream.getVideoTracks()[0] ?? null;
 
   if (videoTrack && "contentHint" in videoTrack) {
@@ -277,10 +285,16 @@ async function createRecordingStream(settings) {
   }
 
   const tracks = videoTrack ? [videoTrack] : [];
+  const displayAudioTracks = activeDisplayStream.getAudioTracks();
+  const shouldMixAudio = displayAudioTracks.length > 0 || settings.microphone;
+
+  if (!shouldMixAudio) {
+    return new MediaStream(tracks);
+  }
+
   activeAudioContext = new AudioContext();
   const destination = activeAudioContext.createMediaStreamDestination();
 
-  const displayAudioTracks = activeDisplayStream.getAudioTracks();
   if (displayAudioTracks.length > 0) {
     const displayAudioStream = new MediaStream(displayAudioTracks);
     const displaySource = activeAudioContext.createMediaStreamSource(displayAudioStream);
@@ -331,8 +345,14 @@ function getRecorderBitrate(stream) {
   return 8000000;
 }
 
-function getPreferredMimeTypes(source) {
-  return source === "tab"
+function getPreferredMimeTypes(stream, source, requiresPickerForTabCapture = false) {
+  const hasAudioTrack = stream.getAudioTracks().length > 0;
+
+  if (!hasAudioTrack) {
+    return ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  }
+
+  return source === "tab" && !requiresPickerForTabCapture
     ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
 }
@@ -434,18 +454,27 @@ async function startRecording(settings) {
   activeStream = await createRecordingStream(settings);
   await sendStatus("Capture stream ready.");
 
-  const preferredMimeTypes = getPreferredMimeTypes(settings.source);
+  const preferredMimeTypes = getPreferredMimeTypes(
+    activeStream,
+    settings.source,
+    settings.requiresPickerForTabCapture
+  );
   const mimeType = preferredMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 
   if (!mimeType) {
     throw new Error("No supported recording format is available.");
   }
 
-  mediaRecorder = new MediaRecorder(activeStream, {
+  const mediaRecorderOptions = {
     mimeType,
-    videoBitsPerSecond: getRecorderBitrate(activeStream),
-    audioBitsPerSecond: 128000
-  });
+    videoBitsPerSecond: getRecorderBitrate(activeStream)
+  };
+
+  if (activeStream.getAudioTracks().length > 0) {
+    mediaRecorderOptions.audioBitsPerSecond = 128000;
+  }
+
+  mediaRecorder = new MediaRecorder(activeStream, mediaRecorderOptions);
 
   mediaRecorder.addEventListener("error", async (event) => {
     await sendMessage({

@@ -16,12 +16,15 @@ const state = {
   status: "idle",
   activeSettings: null,
   recordingTabId: null,
+  overlayTabId: null,
+  overlayRequiresPickerForTabCapture: false,
   lastError: null,
   detail: null
 };
 let stopTimeoutId = null;
 const PAGE_OVERLAY_MESSAGE_TYPE = "spool-toggle-page-overlay";
 const PAGE_OVERLAY_HIDE_MESSAGE_TYPE = "spool-hide-page-overlay";
+const FALLBACK_OVERLAY_URL = "https://www.google.com/";
 
 async function setActionIdle() {
   await chrome.action.setPopup({ popup: "" });
@@ -116,6 +119,81 @@ function isPreviewableTab(tab) {
   return tab.url.startsWith("http://") || tab.url.startsWith("https://");
 }
 
+function isOverlayBlockedError(error) {
+  const message = error?.message || "";
+  return (
+    message.includes("Cannot access contents of the page") ||
+    message.includes("The extensions gallery cannot be scripted") ||
+    message.includes("Missing host permission")
+  );
+}
+
+function setOverlayContext({ tabId = null, requiresPickerForTabCapture = false } = {}) {
+  state.overlayTabId = tabId;
+  state.overlayRequiresPickerForTabCapture = Boolean(tabId && requiresPickerForTabCapture);
+}
+
+function clearOverlayContext() {
+  setOverlayContext();
+}
+
+function shouldUsePickerForTabCapture(tabId) {
+  return state.overlayTabId === tabId && state.overlayRequiresPickerForTabCapture;
+}
+
+function isTabCapturePermissionError(error) {
+  const message = error?.message || "";
+
+  return (
+    message.includes("Extension has not been invoked for the current page") ||
+    message.includes("activeTab permission") ||
+    message.includes("Chrome pages cannot be captured")
+  );
+}
+
+function waitForTabLoad(tabId) {
+  return new Promise((resolve, reject) => {
+    let timeoutId = null;
+
+    const cleanup = () => {
+      chrome.tabs.onUpdated.removeListener(handleUpdated);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    const handleUpdated = (updatedTabId, changeInfo, tab) => {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") {
+        return;
+      }
+
+      cleanup();
+      resolve(tab);
+    };
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out while opening the fallback tab"));
+    }, 15000);
+
+    chrome.tabs
+      .get(tabId)
+      .then((tab) => {
+        if (tab?.status === "complete") {
+          cleanup();
+          resolve(tab);
+          return;
+        }
+
+        chrome.tabs.onUpdated.addListener(handleUpdated);
+      })
+      .catch((error) => {
+        cleanup();
+        reject(error);
+      });
+  });
+}
+
 async function getRecordingContext() {
   const activeTab = await getActiveTab();
 
@@ -135,7 +213,8 @@ async function getRecordingContext() {
 
   return {
     isRecordable: true,
-    message: null
+    message: null,
+    requiresPickerForTabCapture: shouldUsePickerForTabCapture(activeTab.id)
   };
 }
 
@@ -159,6 +238,42 @@ async function sendPageOverlayMessage(tabId, type, payload = {}) {
       type,
       payload
     });
+  }
+}
+
+async function openPageOverlay(tabId, payload = {}, overlayContext = {}) {
+  const response = await sendPageOverlayMessage(tabId, PAGE_OVERLAY_MESSAGE_TYPE, payload);
+  if (response?.isOpen === false) {
+    clearOverlayContext();
+    return;
+  }
+
+  setOverlayContext({
+    tabId,
+    requiresPickerForTabCapture: overlayContext.requiresPickerForTabCapture
+  });
+}
+
+async function openFallbackOverlay() {
+  const fallbackTab = await chrome.tabs.create({
+    url: FALLBACK_OVERLAY_URL,
+    active: true
+  });
+
+  if (!fallbackTab?.id) {
+    throw new Error("Failed to open a fallback tab for the recorder");
+  }
+
+  try {
+    await waitForTabLoad(fallbackTab.id);
+    await openPageOverlay(
+      fallbackTab.id,
+      { forceOpen: true },
+      { requiresPickerForTabCapture: true }
+    );
+  } catch (error) {
+    await chrome.tabs.remove(fallbackTab.id).catch(() => {});
+    throw error;
   }
 }
 
@@ -222,6 +337,9 @@ async function stopRecordingPreview() {
 async function hidePageOverlay(tabId) {
   try {
     await sendPageOverlayMessage(tabId, PAGE_OVERLAY_HIDE_MESSAGE_TYPE);
+    if (state.overlayTabId === tabId) {
+      clearOverlayContext();
+    }
   } catch (error) {
     if (
       error.message?.includes("Cannot access contents of the page") ||
@@ -240,12 +358,20 @@ async function togglePageOverlay() {
     throw new Error("No active tab available for recording");
   }
 
-  const context = await getRecordingContext();
-  if (!context.isRecordable) {
-    throw new Error(context.message);
+  if (!isPreviewableTab(activeTab)) {
+    await openFallbackOverlay();
+    return;
   }
 
-  await sendPageOverlayMessage(activeTab.id, PAGE_OVERLAY_MESSAGE_TYPE);
+  try {
+    await openPageOverlay(activeTab.id);
+  } catch (error) {
+    if (!isOverlayBlockedError(error)) {
+      throw error;
+    }
+
+    await openFallbackOverlay();
+  }
 }
 
 async function startRecording(settings) {
@@ -275,6 +401,9 @@ async function startRecording(settings) {
     throw new Error("No active tab available for capture");
   }
 
+  let requiresPickerForTabCapture =
+    normalizedSettings.source === "tab" && shouldUsePickerForTabCapture(activeTab.id);
+
   state.activeSettings = normalizedSettings;
   state.recordingTabId = activeTab.id;
   state.lastError = null;
@@ -287,7 +416,19 @@ async function startRecording(settings) {
   await new Promise((resolve) => setTimeout(resolve, 120));
   await ensureOffscreenDocument();
 
-  const streamId = normalizedSettings.source === "tab" ? await getTabStreamId(activeTab.id) : null;
+  let streamId = null;
+  if (normalizedSettings.source === "tab" && !requiresPickerForTabCapture) {
+    try {
+      streamId = await getTabStreamId(activeTab.id);
+    } catch (error) {
+      if (!isTabCapturePermissionError(error)) {
+        throw error;
+      }
+
+      requiresPickerForTabCapture = true;
+      state.detail = "Opening Chrome's picker so you can choose what to record...";
+    }
+  }
 
   state.detail = "Starting recorder...";
 
@@ -295,6 +436,7 @@ async function startRecording(settings) {
     type: "offscreen-start-recording",
     payload: {
       ...normalizedSettings,
+      requiresPickerForTabCapture,
       streamId
     }
   });
@@ -415,6 +557,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         state.activeSettings = null;
         state.recordingTabId = null;
         state.detail = null;
+        clearOverlayContext();
         await syncAction();
         sendResponse({ ok: false, error: error.message });
       });
@@ -456,6 +599,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         state.activeSettings = null;
         state.recordingTabId = null;
         state.detail = null;
+        clearOverlayContext();
         await syncAction();
         sendResponse({ ok: false, error: error.message });
       });
@@ -488,6 +632,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     state.activeSettings = null;
     state.recordingTabId = null;
     state.detail = message.payload.detail ?? "Recording saved locally.";
+    clearOverlayContext();
     syncAction().catch(console.error);
     sendResponse({ ok: true });
     return;
@@ -501,6 +646,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     state.activeSettings = null;
     state.recordingTabId = null;
     state.detail = message.payload.detail ?? "Recording ready.";
+    clearOverlayContext();
     syncAction()
       .then(() => openRecordingResultPage())
       .then(() => sendResponse({ ok: true }))
@@ -516,6 +662,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     state.activeSettings = null;
     state.recordingTabId = null;
     state.detail = message.payload.detail ?? null;
+    clearOverlayContext();
     syncAction().catch(console.error);
     sendResponse({ ok: true });
     return;
