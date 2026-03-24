@@ -6,6 +6,7 @@
     "api:dev": "pnpm --filter @spool/share-api dev",
     "api:package": "pnpm --filter @spool/share-api package",
     "api:start": "pnpm --filter @spool/share-api start",
-    "extension:build": "pnpm --filter @spool/extension-ui build"
+    "extension:build": "pnpm --filter @spool/extension-ui build",
+    "extension:package": "pnpm --filter @spool/extension-ui package"
   }
 }

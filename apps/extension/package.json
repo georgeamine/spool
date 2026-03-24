@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-ui.mjs"
+    "build": "node scripts/build-ui.mjs",
+    "package": "node scripts/package-extension.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
