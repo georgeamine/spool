@@ -92,7 +92,10 @@ function removeOverlay() {
   const root = document.getElementById(OVERLAY_ROOT_ID);
   if (root) {
     root.remove();
+    return true;
   }
+
+  return false;
 }
 
 function requestOverlayClose() {
@@ -148,27 +151,26 @@ function toggleOverlay(payload = {}) {
   if (existing) {
     if (payload.forceOpen) {
       ensureOverlay(payload);
-      return;
+      return true;
     }
 
     requestOverlayClose();
-    return;
+    return false;
   }
 
   ensureOverlay(payload);
+  return true;
 }
 
 if (!globalThis.__spoolPageOverlayListenerAttached) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === "spool-toggle-page-overlay") {
-      toggleOverlay(message.payload);
-      sendResponse({ ok: true });
+      sendResponse({ ok: true, isOpen: toggleOverlay(message.payload) });
       return;
     }
 
     if (message.type === "spool-hide-page-overlay") {
-      removeOverlay();
-      sendResponse({ ok: true });
+      sendResponse({ ok: true, wasOpen: removeOverlay() });
       return;
     }
   });

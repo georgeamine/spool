@@ -35,6 +35,11 @@ let microphonePreviewAnalyser = null;
 let microphonePreviewAnimationFrame = null;
 let microphonePreviewData = null;
 let panelMode = "main";
+let recordingContext = {
+  isRecordable: false,
+  message: null,
+  requiresPickerForTabCapture: false
+};
 
 async function getStoredSettings() {
   const stored = await chrome.storage.local.get(DEFAULT_SETTINGS);
@@ -294,6 +299,10 @@ async function hideOverlay() {
 
 function getIdleStatus(state) {
   if (!state.lastError && !state.detail) {
+    if (recordingContext.requiresPickerForTabCapture && sourceInput.value === "tab") {
+      return "Current tab will open Chrome's picker so you can choose a tab, window, or screen.";
+    }
+
     return "Configure the capture source and start recording.";
   }
 
@@ -310,6 +319,11 @@ async function hydrate() {
     getState(),
     getRecordingContext()
   ]);
+  recordingContext = {
+    isRecordable: Boolean(context?.isRecordable),
+    message: context?.message || null,
+    requiresPickerForTabCapture: Boolean(context?.requiresPickerForTabCapture)
+  };
 
   sourceInput.value = settings.source;
   recordingFormatInput.value = settings.recordingFormat || DEFAULT_SETTINGS.recordingFormat;
@@ -326,8 +340,8 @@ async function hydrate() {
     stopMicrophonePreview();
   }
 
-  if (!context?.isRecordable && state.status === "idle") {
-    setStatus(context?.message || "Recording is not available on this page.");
+  if (!recordingContext.isRecordable && state.status === "idle") {
+    setStatus(recordingContext.message || "Recording is not available on this page.");
     setDisabled(true);
     return;
   }
@@ -411,7 +425,7 @@ recordingFormatInput.addEventListener("change", async () => {
 sourceInput.addEventListener("change", async () => {
   try {
     await syncWebcamPreview();
-    setStatus("Configure the capture source and start recording.");
+    setStatus(getIdleStatus({ lastError: null, detail: null }));
   } catch (error) {
     setStatus(error.message);
   }
@@ -429,7 +443,7 @@ webcamModeInput.addEventListener("change", async () => {
     }
 
     await syncWebcamPreview();
-    setStatus("Configure the capture source and start recording.");
+    setStatus(getIdleStatus({ lastError: null, detail: null }));
   } catch (error) {
     webcamModeInput.value = "off";
     setStatus(error.message);
@@ -449,7 +463,7 @@ microphoneModeInput.addEventListener("change", async () => {
       stopMicrophonePreview();
     }
 
-    setStatus("Configure the capture source and start recording.");
+    setStatus(getIdleStatus({ lastError: null, detail: null }));
   } catch (error) {
     stopMicrophonePreview();
     microphoneModeInput.value = "off";

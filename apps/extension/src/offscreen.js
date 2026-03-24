@@ -77,12 +77,16 @@ function buildTabConstraints(streamId) {
   };
 }
 
-async function getCaptureStream(source, streamId) {
-  if (source === "tab") {
+async function getCaptureStream(source, streamId, requiresPickerForTabCapture = false) {
+  if (source === "tab" && !requiresPickerForTabCapture) {
     return navigator.mediaDevices.getUserMedia(buildTabConstraints(streamId));
   }
 
-  await sendStatus("Choose a window or screen in the Chrome picker...");
+  await sendStatus(
+    requiresPickerForTabCapture
+      ? "Choose a tab, window, or screen in the Chrome picker..."
+      : "Choose a window or screen in the Chrome picker..."
+  );
   return navigator.mediaDevices.getDisplayMedia({
     video: {
       frameRate: 30
@@ -269,7 +273,11 @@ async function createOutputVideoTrack() {
 }
 
 async function createRecordingStream(settings) {
-  activeDisplayStream = await getCaptureStream(settings.source, settings.streamId);
+  activeDisplayStream = await getCaptureStream(
+    settings.source,
+    settings.streamId,
+    settings.requiresPickerForTabCapture
+  );
   const videoTrack = activeDisplayStream.getVideoTracks()[0] ?? null;
 
   if (videoTrack && "contentHint" in videoTrack) {
@@ -331,8 +339,8 @@ function getRecorderBitrate(stream) {
   return 8000000;
 }
 
-function getPreferredMimeTypes(source) {
-  return source === "tab"
+function getPreferredMimeTypes(source, requiresPickerForTabCapture = false) {
+  return source === "tab" && !requiresPickerForTabCapture
     ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm"];
 }
@@ -434,7 +442,10 @@ async function startRecording(settings) {
   activeStream = await createRecordingStream(settings);
   await sendStatus("Capture stream ready.");
 
-  const preferredMimeTypes = getPreferredMimeTypes(settings.source);
+  const preferredMimeTypes = getPreferredMimeTypes(
+    settings.source,
+    settings.requiresPickerForTabCapture
+  );
   const mimeType = preferredMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 
   if (!mimeType) {
